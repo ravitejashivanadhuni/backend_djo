@@ -9,7 +9,7 @@ const {
 
 
 // POST job
-router.post("/jobs", createJob);
+router.post("/post-job", createJob);
 
 
 // GET jobs (with filters)
@@ -17,7 +17,7 @@ router.get("/jobs", getJobs);
 
 
 // GET job details
-router.get("/job/:slug", getJobBySlug);
+router.get("/view-job/:slug", getJobBySlug);
 
 
 module.exports = router;
