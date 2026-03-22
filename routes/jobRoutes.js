@@ -6,7 +6,9 @@ const {
   getJobs,
   getJobBySlug,
   getLatestJobs,
-  getSimilarJobs
+  getSimilarJobs,
+  getActiveJobs,
+  getExpiredJobs
 } = require("../controllers/jobController");
 
 
@@ -22,6 +24,8 @@ router.get("/get-jobs", getJobs);
 router.get("/view-job/:slug", getJobBySlug);
 router.get("/get-latest-jobs", getLatestJobs);
 router.get("/similar-jobs/:jobId", getSimilarJobs);
+router.get("/active-jobs", getActiveJobs);
+router.get("/expired-jobs", getExpiredJobs);
 
 
 module.exports = router;

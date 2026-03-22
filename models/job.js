@@ -2,84 +2,73 @@
 
 // const jobSchema = new mongoose.Schema(
 // {
-//   companyLogo: {
-//     type: String,
-//     required: true
-//   },
+//   // 🔹 Company Info
+//   companyLogo: String,
+//   companyName: String,
+//   companyWebsite: String,              // official company link
+//   companyCareersLink: String,          // careers page
 
-//   companyName: {
-//     type: String,
-//     required: true
-//   },
+//   // 🔹 Job Basic Info
+//   jobTitle: String,
+//   jobRole: String,
+//   jobDescription: String,
+//   slug: { type: String, unique: true },
 
-//   jobTitle: {
-//     type: String,
-//     required: true
-//   },
+//   // 🔹 Job Details
+//   salary: String,
+//   location: String,
+//   workMode: String,                    // Remote / Hybrid / Onsite
+//   jobType: String,                     // Full-time / Contract etc
+//   jobCategory: String,                 // IT / Non-IT
+//   experienceLevel: String,             // Fresher / 1-3 yrs
 
-//   jobRole: {
-//     type: String,
-//     required: true
-//   },
+//   // 🔹 Dates
+//   postedDate: Date,                    // 🔥 NEW
+//   expiryDate: Date,
 
-//   jobDescription: {
-//     type: String,
-//     required: true
-//   },
+//   // 🔹 Eligibility
+//   education: String,
+//   eligibleBatches: String,             // "2023-2025"
+//   department: String,                  // Cloud / Linux
 
-//   slug: {
-//     type: String,
-//     unique: true
-//   },
+//   // 🔹 Hiring Info
+//   openings: Number,                    // 15
+//   applicantsCount: Number,             // optional (future use)
 
-//   jobType: {
-//     type: String,
-//     // enum: ["Full Time", "Internship", "Contract", "Part Time"]
-//   },
+//   // 🔹 Skills & Tags
+//   skills: [String],                    // 🔥 NEW (instead of only tags)
+//   tags: [String],                      // keep for flexibility
 
-//   experienceLevel: {
-//     type: String,
-//     // enum: ["Fresher", "1-3 Years", "3-5 Years", "Senior"]
-//   },
+//   // 🔹 Links
+//   jobLink: String,                     // apply link
 
-//   jobCategory: {
-//     type: String,
-//     // enum: ["Private", "Government"]
-//   },
+//   // 🔹 Extra (future safe)
+//   perks: [String],                     // optional
+//   responsibilities: [String],
+//   qualifications: [String],
+//   verified: { type: Boolean, default: false }, // for admin verification
+//   badge: {
+//   type: String,
+//   enum: ["featured", "hot", "new", "remote"],
+//   default: null,
+// },
 
-//   workMode: {
-//     type: String,
-//     // enum: ["Remote", "Hybrid", "Onsite"]
-//   },
+// badgeLabel: {
+//   type: String,
+//   default: null,
+// },
+// status: {
+//   type: String,
+//   enum: ["active", "expired", "draft", "closed"],
+//   default: "active"
+// },
 
-//   salary: {
-//     type: String
-//   },
-
-//   location: {
-//     type: String
-//   },
-
-//   jobLink: {
-//     type: String,
-//   },
-
-//   expiryDate: {
-//     type: Date
-//   },
-
-//   tags: [
-//     {
-//       type: String
-//     }
-//   ]
 
 // },
 // { timestamps: true }
 // );
 
 // module.exports = mongoose.model("Job", jobSchema);
-
 
 const mongoose = require("mongoose");
 
@@ -88,8 +77,8 @@ const jobSchema = new mongoose.Schema(
   // 🔹 Company Info
   companyLogo: String,
   companyName: String,
-  companyWebsite: String,              // official company link
-  companyCareersLink: String,          // careers page
+  companyWebsite: String,
+  companyCareersLink: String,
 
   // 🔹 Job Basic Info
   jobTitle: String,
@@ -100,50 +89,86 @@ const jobSchema = new mongoose.Schema(
   // 🔹 Job Details
   salary: String,
   location: String,
-  workMode: String,                    // Remote / Hybrid / Onsite
-  jobType: String,                     // Full-time / Contract etc
-  jobCategory: String,                 // IT / Non-IT
-  experienceLevel: String,             // Fresher / 1-3 yrs
+  workMode: String,
+  jobType: String,
+  jobCategory: String,
+  experienceLevel: String,
 
   // 🔹 Dates
-  postedDate: Date,                    // 🔥 NEW
+  postedDate: Date,
   expiryDate: Date,
+
+  // 🔥 Auto delete support
+  expiresAt: {
+    type: Date,
+    index: true
+  },
 
   // 🔹 Eligibility
   education: String,
-  eligibleBatches: String,             // "2023-2025"
-  department: String,                  // Cloud / Linux
+  eligibleBatches: String,
+  department: String,
 
   // 🔹 Hiring Info
-  openings: Number,                    // 15
-  applicantsCount: Number,             // optional (future use)
+  openings: Number,
+  applicantsCount: Number,
 
   // 🔹 Skills & Tags
-  skills: [String],                    // 🔥 NEW (instead of only tags)
-  tags: [String],                      // keep for flexibility
+  skills: [String],
+  tags: [String],
 
   // 🔹 Links
-  jobLink: String,                     // apply link
+  jobLink: String,
 
-  // 🔹 Extra (future safe)
-  perks: [String],                     // optional
+  // 🔹 Extra
+  perks: [String],
   responsibilities: [String],
   qualifications: [String],
-  verified: { type: Boolean, default: false }, // for admin verification
+  verified: { type: Boolean, default: false },
+
   badge: {
-  type: String,
-  enum: ["featured", "hot", "new", "remote"],
-  default: null,
-},
+    type: String,
+    enum: ["featured", "hot", "new", "remote"],
+    default: null,
+  },
 
-badgeLabel: {
-  type: String,
-  default: null,
-}
+  badgeLabel: {
+    type: String,
+    default: null,
+  },
 
+  status: {
+    type: String,
+    enum: ["active", "expired", "draft", "closed"],
+    default: "active"
+  }
 
 },
 { timestamps: true }
 );
+
+
+// 🔧 Middleware (Auto expiry + delete logic)
+jobSchema.pre("save", async function () {
+  const now = new Date();
+
+  // default expiry (60 days)
+  if (!this.expiryDate) {
+    const defaultExpiry = new Date(now);
+    defaultExpiry.setDate(defaultExpiry.getDate() + 60);
+    this.expiryDate = defaultExpiry;
+  }
+  
+  // expiresAt = expiryDate + 15 days
+  const deleteAfter = new Date(this.expiryDate);
+  deleteAfter.setDate(deleteAfter.getDate() + 15);
+
+  this.expiresAt = deleteAfter;
+});
+
+
+// 🔥 TTL Index (Auto delete after expiresAt)
+jobSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 
 module.exports = mongoose.model("Job", jobSchema);

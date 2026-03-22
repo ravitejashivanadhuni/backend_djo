@@ -87,9 +87,36 @@ const getJobs = async (req, res) => {
 
 
 // GET JOB BY SLUG
+// const getJobBySlug = async (req, res) => {
+//   try {
+
+//     const job = await Job.findOne({ slug: req.params.slug });
+
+//     if (!job) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Job not found"
+//       });
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       data: job
+//     });
+
+//   } catch (error) {
+
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching job",
+//       error: error.message
+//     });
+
+//   }
+// };
+
 const getJobBySlug = async (req, res) => {
   try {
-
     const job = await Job.findOne({ slug: req.params.slug });
 
     if (!job) {
@@ -99,19 +126,40 @@ const getJobBySlug = async (req, res) => {
       });
     }
 
+    const now = new Date();
+
+    // ✅ 1. Check closed
+    if (job.status === "closed") {
+      return res.status(400).json({
+        success: false,
+        message: "This job is closed"
+      });
+    }
+
+    // ✅ 2. Check expired (DB status OR safety check)
+    const isExpired =
+      job.status === "expired" ||
+      (job.expiryDate && job.expiryDate < now);
+
+    if (isExpired) {
+      return res.status(400).json({
+        success: false,
+        message: "This job has expired"
+      });
+    }
+
+    // ✅ 3. If active → return job
     res.status(200).json({
       success: true,
       data: job
     });
 
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: "Error fetching job",
       error: error.message
     });
-
   }
 };
 
@@ -214,10 +262,56 @@ const getSimilarJobs = async (req, res) => {
   }
 };
 
+// This is an additional controller to fetch only active jobs for the alert bar on homepage
+const getActiveJobs = async (req, res) => {
+  try {
+    const jobs = await Job.find({ status: "active" })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: jobs.length,
+      data: jobs
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching active jobs",
+      error: error.message
+    });
+  }
+};
+
+// This is an additional controller to fetch only expired jobs for the admin panel
+const getExpiredJobs = async (req, res) => {
+  try {
+    const jobs = await Job.find({ status: "expired" })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: jobs.length,
+      data: jobs
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching expired jobs",
+      error: error.message
+    });
+  }
+};
+
+
 module.exports = {
   createJob,
   getJobs,
   getJobBySlug,
   getLatestJobs,
-  getSimilarJobs
+  getSimilarJobs,
+  getActiveJobs,
+  getExpiredJobs
+
 };
