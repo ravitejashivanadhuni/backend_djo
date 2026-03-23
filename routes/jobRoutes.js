@@ -8,7 +8,12 @@ const {
   getLatestJobs,
   getSimilarJobs,
   getActiveJobs,
-  getExpiredJobs
+  getExpiredJobs,
+  getStats,
+  getJobCategories,
+  getTopCompanies,
+  getJobsByLocation
+
 } = require("../controllers/jobController");
 
 
@@ -26,6 +31,10 @@ router.get("/get-latest-jobs", getLatestJobs);
 router.get("/similar-jobs/:jobId", getSimilarJobs);
 router.get("/active-jobs", getActiveJobs);
 router.get("/expired-jobs", getExpiredJobs);
+router.get("/get-stats", getStats);
+router.get("/quick-job-categories", getJobCategories);
+router.get("/top-hiring-companies", getTopCompanies);
+router.get("/jobs-by-location", getJobsByLocation);
 
 
 module.exports = router;

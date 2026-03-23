@@ -304,6 +304,195 @@ const getExpiredJobs = async (req, res) => {
   }
 };
 
+//this is an controller to fetch the stats for the landing page
+const getStats = async (req, res) => {
+  try {
+    const now = new Date();
+
+    // ✅ Active Jobs
+    const activeJobs = await Job.countDocuments({
+      status: "active",
+      expiryDate: { $gte: now }
+    });
+
+    // ✅ Companies Count (unique)
+    const companies = await Job.distinct("companyName");
+
+    // ✅ New Jobs (last 7 days)
+    const last7Days = new Date();
+    last7Days.setDate(last7Days.getDate() - 7);
+
+    const newJobs = await Job.countDocuments({
+      createdAt: { $gte: last7Days }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        activeJobs,
+        companies: companies.length,
+        newJobs
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching stats",
+      error: error.message
+    });
+  }
+};
+
+//this is used to fetch the quick job categories in app.jsx page
+const getJobCategories = async (req, res) => {
+  try {
+    const categories = [
+      {
+        label: "Software IT Jobs",
+        count: await Job.countDocuments({ jobCategory: "IT" })
+      },
+      {
+        label: "Work From Home",
+        count: await Job.countDocuments({ workMode: "Remote" })
+      },
+      {
+        label: "Government Jobs",
+        count: await Job.countDocuments({ jobCategory: "Government" })
+      },
+      {
+        label: "MBA / BBA Jobs",
+        count: await Job.countDocuments({
+          education: { $regex: /MBA|BBA/i }
+        })
+      },
+      {
+        label: "Internships",
+        count: await Job.countDocuments({ jobType: "Internship" })
+      },
+      {
+        label: "Walk-in Jobs",
+        count: await Job.countDocuments({
+          tags: { $in: ["walk-in"] }
+        })
+      },
+      {
+        label: "Data Analyst Jobs",
+        count: await Job.countDocuments({
+          jobRole: { $regex: /data/i }
+        })
+      },
+      {
+        label: "Non-Engineering",
+        count: await Job.countDocuments({
+          jobCategory: { $ne: "IT" }
+        })
+      }
+    ];
+
+    res.status(200).json({
+      success: true,
+      data: categories
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching categories",
+      error: error.message
+    });
+  }
+};
+
+//this is top hiring companies controller for the landing page.
+const getTopCompanies = async (req, res) => {
+  try {
+    const companies = await Job.aggregate([
+      {
+        $match: {
+          status: "active"
+        }
+      },
+      {
+        $group: {
+          _id: "$companyName",
+          count: { $sum: 1 },
+          logo: { $first: "$companyLogo" },
+          website: { $first: "$companyWebsite" }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: 5
+      }
+    ]);
+
+    // format response
+    const formatted = companies.map((c) => ({
+      name: c._id,
+      count: c.count,
+      logo: c.logo,
+      website: c.website
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formatted
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching top companies",
+      error: error.message
+    });
+  }
+};
+
+//get jobs by location controller for the landing page
+const getJobsByLocation = async (req, res) => {
+  try {
+    const locations = await Job.aggregate([
+      {
+        $match: {
+          status: "active",
+          expiryDate: { $gte: new Date() }
+        }
+      },
+      {
+        $group: {
+          _id: "$location",
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: 7
+      }
+    ]);
+
+    const formatted = locations.map((l) => ({
+      label: l._id,
+      count: l.count
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formatted
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching locations",
+      error: error.message
+    });
+  }
+};
 
 module.exports = {
   createJob,
@@ -312,6 +501,10 @@ module.exports = {
   getLatestJobs,
   getSimilarJobs,
   getActiveJobs,
-  getExpiredJobs
+  getExpiredJobs,
+  getStats,
+  getJobCategories,
+  getTopCompanies,
+  getJobsByLocation
 
 };
