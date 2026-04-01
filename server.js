@@ -7,7 +7,7 @@ const jobRoutes = require("./routes/jobRoutes");
 const jobAlertRoutes = require("./routes/jobalertroutes");
 
 
-require("./cron/jobstatusupdater"); //this is related to cron job status updater which will automatically update the status of jobs to "expired" when their expiry date has passed. It runs a scheduled task every day at midnight to check for expired jobs and update their status accordingly.
+// require("./cron/jobstatusupdater"); //this is related to cron job status updater which will automatically update the status of jobs to "expired" when their expiry date has passed. It runs a scheduled task every day at midnight to check for expired jobs and update their status accordingly.
 
 
 const app = express();
