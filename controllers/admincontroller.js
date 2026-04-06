@@ -1,6 +1,7 @@
 const Admin = require("../models/admin");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generatetoken");
+const sendEmail = require("../utils/sendemail");
 
 // LOGIN
 exports.loginAdmin = async (req, res) => {
@@ -36,7 +37,6 @@ exports.loginAdmin = async (req, res) => {
   }
 };
 
-const sendEmail = require("../utils/sendEmail");
 
 exports.createAdmin = async (req, res) => {
   try {
