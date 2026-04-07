@@ -1,7 +1,8 @@
 const JobAlert = require("../models/jobalert");
 const sendEmail = require("../utils/sendemail"); // we’ll create this
+const asyncHandler = require("../utils/asyncHandler"); // we’ll create this too
 
-exports.subscribeJobAlert = async (req, res) => {
+exports.subscribeJobAlert = asyncHandler(async (req, res) => {
   try {
     const {
       email,
@@ -55,4 +56,4 @@ exports.subscribeJobAlert = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-};
+});

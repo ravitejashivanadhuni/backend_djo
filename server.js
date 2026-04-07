@@ -4,7 +4,8 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
-
+const mongoSanitize = require("express-mongo-sanitize");
+const xss = require("xss-clean");
 const connectDB = require("./config/db");
 const jobRoutes = require("./routes/jobRoutes");
 const jobAlertRoutes = require("./routes/jobalertroutes");
@@ -120,6 +121,8 @@ app.use((err, req, res, next) => {
       : err.message,
   });
 });
+app.use(mongoSanitize()); // Prevent NoSQL injection
+app.use(xss()); // Prevent XSS attacks
 
 /* =========================
    ✅ SERVER START

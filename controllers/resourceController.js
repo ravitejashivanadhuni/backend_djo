@@ -1,19 +1,20 @@
 import Resource from "../models/resources.js";
+import asyncHandler from "../utils/asyncHandler.js";
 
 
 // ✅ GET all resources
-export const getResources = async (req, res) => {
+export const getResources = asyncHandler(async (req, res) => {
   try {
     const resources = await Resource.find();
     res.status(200).json(resources);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+});
 
 
 // ✅ CREATE resource
-export const createResource = async (req, res) => {
+export const createResource = asyncHandler(async (req, res) => {
   try {
     const newResource = new Resource(req.body);
     const savedResource = await newResource.save();
@@ -21,11 +22,11 @@ export const createResource = async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
-};
+});
 
 
 // ✅ DELETE resource
-export const deleteResource = async (req, res) => {
+export const deleteResource = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
     await Resource.findByIdAndDelete(id);
@@ -33,10 +34,10 @@ export const deleteResource = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+});
 
 // used to update resources
-export const updateResource = async (req, res) => {
+export const updateResource = asyncHandler(async (req, res) => {
   try {
     const updated = await Resource.findByIdAndUpdate(
       req.params.id,
@@ -47,4 +48,4 @@ export const updateResource = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+});

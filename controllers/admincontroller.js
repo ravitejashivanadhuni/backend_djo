@@ -2,9 +2,10 @@ const Admin = require("../models/admin");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generatetoken");
 const sendEmail = require("../utils/sendemail");
+const asyncHandler = require("../utils/asyncHandler");
 
 // LOGIN
-exports.loginAdmin = async (req, res) => {
+exports.loginAdmin = asyncHandler(async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -35,10 +36,10 @@ exports.loginAdmin = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
-};
+});
 
 
-exports.createAdmin = async (req, res) => {
+exports.createAdmin = asyncHandler(async (req, res) => {
   try {
     const { email, role } = req.body;
 
@@ -100,7 +101,7 @@ exports.createAdmin = async (req, res) => {
       await sendEmail(email, "Your Admin Account Details", html);
     } catch (err) {
       emailSent = false;
-      console.error("Email failed:", err.message);
+      logger.error("Email failed:", err.message);
     }
 
     // ✅ Response based on email status
@@ -111,22 +112,23 @@ exports.createAdmin = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Create Admin Error:", error);
+    logger.error("Create Admin Error:", error);
     res.status(500).json({ message: "Server error" });
   }
-};
+});
 
-exports.getAllAdmins = async (req, res) => {
+exports.getAllAdmins = asyncHandler(async (req, res) => {
   try {
     const admins = await Admin.find().select("-password");
     res.json(admins);
   } catch (error) {
+    logger.error("Get All Admins Error:", error);
     res.status(500).json({ message: "Server error" });
   }
-};
+});
 
 
-exports.deleteAdmin = async (req, res) => {
+exports.deleteAdmin = asyncHandler(async (req, res) => {
   try {
     const adminToDelete = await Admin.findById(req.params.id);
 
@@ -162,13 +164,13 @@ exports.deleteAdmin = async (req, res) => {
 
     res.json({ message: "Admin deleted successfully" });
   } catch (error) {
-    console.error(error);
+    logger.error("Delete Admin Error:", error);
     res.status(500).json({ message: "Server error" });
   }
-};
+});
 
 // RESET PASSWORD
-exports.resetPassword = async (req, res) => {
+exports.resetPassword = asyncHandler(async (req, res) => {
   try {
     const { newPassword } = req.body;
 
@@ -195,11 +197,12 @@ exports.resetPassword = async (req, res) => {
       message: "Password updated successfully",
     });
   } catch (error) {
+    logger.error("Reset Password Error:", error);
     res.status(500).json({ message: "Server error" });
   }
-};
+});
 
-exports.updateAdmin = async (req, res) => {
+exports.updateAdmin = asyncHandler(async (req, res) => {
   try {
     const { email, role } = req.body;
     const adminId = req.params.id;
@@ -269,6 +272,7 @@ exports.updateAdmin = async (req, res) => {
       },
     });
   } catch (error) {
+    logger.error("Update Admin Error:", error);
     res.status(500).json({ message: "Server error" });
   }
-};
+});

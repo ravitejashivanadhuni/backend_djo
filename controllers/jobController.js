@@ -2,9 +2,11 @@ const Job = require("../models/job");
 const slugify = require("slugify");
 const JobAlert = require("../models/jobalert");
 const sendEmail = require("../utils/sendemail");
+const asyncHandler = require("../utils/asyncHandler");
+const redis = require("../utils/redisClient");
 
 // CREATE JOB
-const createJob = async (req, res) => {
+const createJob = asyncHandler(async (req, res) => {
   try {
     const {
       companyName,
@@ -55,9 +57,9 @@ const createJob = async (req, res) => {
       error: error.message
     });
   }
-};
+});
 
-const updateJob = async (req, res) => {
+const updateJob = asyncHandler(async (req, res) => {
   try {
     const jobId = req.params.id;
 
@@ -117,9 +119,9 @@ const updateJob = async (req, res) => {
       error: error.message,
     });
   }
-};
+});
 
-const deleteJob = async (req, res) => {
+const deleteJob = asyncHandler(async (req, res) => {
   try {
     const jobId = req.params.id;
 
@@ -145,9 +147,9 @@ const deleteJob = async (req, res) => {
       error: error.message,
     });
   }
-};
+});
 
-const closeJob = async (req, res) => {
+const closeJob = asyncHandler(async (req, res) => {
   try {
     const jobId = req.params.id;
 
@@ -183,10 +185,10 @@ const closeJob = async (req, res) => {
       error: error.message,
     });
   }
-};
+});
 
 // GET ALL JOBS + FILTER
-const getJobs = async (req, res) => {
+const getJobs = asyncHandler(async (req, res) => {
   try {
 
     const query = {};
@@ -228,14 +230,10 @@ const getJobs = async (req, res) => {
     });
 
   }
-};
+});
 
-
-
-// GET JOB BY SLUG
-// const getJobBySlug = async (req, res) => {
+// const getJobBySlug = asyncHandler(async (req, res) => {
 //   try {
-
 //     const job = await Job.findOne({ slug: req.params.slug });
 
 //     if (!job) {
@@ -245,72 +243,133 @@ const getJobs = async (req, res) => {
 //       });
 //     }
 
+//     const now = new Date();
+
+//     // ✅ 1. Check closed
+//     if (job.status === "closed") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "This job is closed"
+//       });
+//     }
+
+//     // ✅ 2. Check expired (DB status OR safety check)
+//     const isExpired =
+//       job.status === "expired" ||
+//       (job.expiryDate && job.expiryDate < now);
+
+//     if (isExpired) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "This job has expired"
+//       });
+//     }
+
+//     // ✅ 3. If active → return job
 //     res.status(200).json({
 //       success: true,
 //       data: job
 //     });
 
 //   } catch (error) {
-
 //     res.status(500).json({
 //       success: false,
 //       message: "Error fetching job",
 //       error: error.message
 //     });
-
 //   }
-// };
+// });
 
-const getJobBySlug = async (req, res) => {
+const getJobBySlug = asyncHandler(async (req, res) => {
+  const { slug } = req.params;
+  const key = `job:${slug}`;
+
+  // 🔍 1. Try Redis first
   try {
-    const job = await Job.findOne({ slug: req.params.slug });
+    const cached = await redis.get(key);
+    if (cached) {
+      const job = JSON.parse(cached);
 
-    if (!job) {
-      return res.status(404).json({
-        success: false,
-        message: "Job not found"
+      // ⚠️ Still validate (important)
+      const now = new Date();
+
+      if (job.status === "closed") {
+        return res.status(400).json({
+          success: false,
+          message: "This job is closed",
+        });
+      }
+
+      const isExpired =
+        job.status === "expired" ||
+        (job.expiryDate && new Date(job.expiryDate) < now);
+
+      if (isExpired) {
+        return res.status(400).json({
+          success: false,
+          message: "This job has expired",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: job,
+        source: "cache", // 🧪 for testing
       });
     }
+  } catch (err) {
+    logger.error("Redis GET error:", err);
+  }
 
-    const now = new Date();
+  // 🗄️ 2. Fetch from DB
+  const job = await Job.findOne({ slug }).lean();
 
-    // ✅ 1. Check closed
-    if (job.status === "closed") {
-      return res.status(400).json({
-        success: false,
-        message: "This job is closed"
-      });
-    }
-
-    // ✅ 2. Check expired (DB status OR safety check)
-    const isExpired =
-      job.status === "expired" ||
-      (job.expiryDate && job.expiryDate < now);
-
-    if (isExpired) {
-      return res.status(400).json({
-        success: false,
-        message: "This job has expired"
-      });
-    }
-
-    // ✅ 3. If active → return job
-    res.status(200).json({
-      success: true,
-      data: job
-    });
-
-  } catch (error) {
-    res.status(500).json({
+  if (!job) {
+    return res.status(404).json({
       success: false,
-      message: "Error fetching job",
-      error: error.message
+      message: "Job not found",
     });
   }
-};
+
+  const now = new Date();
+
+  // ✅ 1. Check closed
+  if (job.status === "closed") {
+    return res.status(400).json({
+      success: false,
+      message: "This job is closed",
+    });
+  }
+
+  // ✅ 2. Check expired
+  const isExpired =
+    job.status === "expired" ||
+    (job.expiryDate && job.expiryDate < now);
+
+  if (isExpired) {
+    return res.status(400).json({
+      success: false,
+      message: "This job has expired",
+    });
+  }
+
+  // 💾 3. Store in Redis (TTL = 5 min)
+  try {
+    await redis.set(key, JSON.stringify(job), "EX", 300);
+  } catch (err) {
+    logger.error("Redis SET error:", err);
+  }
+
+  // ✅ 4. Send response
+  res.status(200).json({
+    success: true,
+    data: job,
+    source: "db", // 🧪 for testing
+  });
+});
 
 // GET /api/jobs/latest this controller is for homepage to show latest 3 jobs with only title and company name for alert bar
-const getLatestJobs = async (req, res) => {
+const getLatestJobs = asyncHandler(async (req, res) => {
   try {
     const jobs = await Job.find({})
       .sort({ createdAt: -1 }) // latest first
@@ -323,93 +382,185 @@ const getLatestJobs = async (req, res) => {
       jobs,
     });
   } catch (error) {
-    console.error("Error fetching latest jobs:", error);
+    logger.error("Error fetching latest jobs:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
     });
   }
-};
+});
 
 // GET /api/jobs/similar/:jobId this controller is for fetching the similar jobs in view jobs page
-const getSimilarJobs = async (req, res) => {
+// const getSimilarJobs = asyncHandler(async (req, res) => {
+//   try {
+//     const { jobId } = req.params;
+
+//     // 1. Get current job
+//     const currentJob = await Job.findById(jobId);
+
+//     if (!currentJob) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Job not found",
+//       });
+//     }
+
+//     // 2. Fetch candidate jobs (filtered, not full DB)
+//     const candidates = await Job.find({
+//       _id: { $ne: jobId },
+//       experienceLevel: currentJob.experienceLevel, // basic filter
+//     }).limit(20); // limit for performance
+
+//     // 3. Apply scoring
+//     const scoredJobs = candidates.map((job) => {
+//       let score = 0;
+
+//       // 🔥 Role match (partial match)
+//       if (
+//         job.jobTitle.toLowerCase().includes(currentJob.jobTitle.toLowerCase()) ||
+//         currentJob.jobTitle.toLowerCase().includes(job.jobTitle.toLowerCase())
+//       ) {
+//         score += 5;
+//       }
+
+//       // 🔥 Skills match
+//       if (job.skills && currentJob.skills) {
+//         const commonSkills = job.skills.filter((skill) =>
+//           currentJob.skills.includes(skill)
+//         );
+//         score += commonSkills.length * 2;
+//       }
+
+//       // 🔥 Location match
+//       if (job.location === currentJob.location) {
+//         score += 2;
+//       }
+
+//       // 🔥 Work mode match
+//       if (job.workMode === currentJob.workMode) {
+//         score += 1;
+//       }
+
+//       return {
+//         ...job.toObject(),
+//         score,
+//       };
+//     });
+
+//     // 4. Sort by score (highest first)
+//     scoredJobs.sort((a, b) => b.score - a.score);
+
+//     // 5. Return top 5
+//     const similarJobs = scoredJobs.slice(0, 5);
+
+//     res.status(200).json({
+//       success: true,
+//       count: similarJobs.length,
+//       jobs: similarJobs,
+//     });
+//   } catch (error) {
+//     logger.error("Error fetching similar jobs:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error",
+//     });
+//   }
+// });
+
+const getSimilarJobs = asyncHandler(async (req, res) => {
+  const { jobId } = req.params;
+  const key = `similarJobs:${jobId}`;
+
+  // 🔍 1. Check Redis
   try {
-    const { jobId } = req.params;
-
-    // 1. Get current job
-    const currentJob = await Job.findById(jobId);
-
-    if (!currentJob) {
-      return res.status(404).json({
-        success: false,
-        message: "Job not found",
+    const cached = await redis.get(key);
+    if (cached) {
+      return res.status(200).json({
+        success: true,
+        ...JSON.parse(cached),
+        source: "cache", // 🧪 testing
       });
     }
+  } catch (err) {
+    logger.error("Redis GET error:", err.message);
+  }
 
-    // 2. Fetch candidate jobs (filtered, not full DB)
-    const candidates = await Job.find({
-      _id: { $ne: jobId },
-      experienceLevel: currentJob.experienceLevel, // basic filter
-    }).limit(20); // limit for performance
+  // 🗄️ 2. Get current job
+  const currentJob = await Job.findById(jobId).lean();
 
-    // 3. Apply scoring
-    const scoredJobs = candidates.map((job) => {
-      let score = 0;
-
-      // 🔥 Role match (partial match)
-      if (
-        job.jobTitle.toLowerCase().includes(currentJob.jobTitle.toLowerCase()) ||
-        currentJob.jobTitle.toLowerCase().includes(job.jobTitle.toLowerCase())
-      ) {
-        score += 5;
-      }
-
-      // 🔥 Skills match
-      if (job.skills && currentJob.skills) {
-        const commonSkills = job.skills.filter((skill) =>
-          currentJob.skills.includes(skill)
-        );
-        score += commonSkills.length * 2;
-      }
-
-      // 🔥 Location match
-      if (job.location === currentJob.location) {
-        score += 2;
-      }
-
-      // 🔥 Work mode match
-      if (job.workMode === currentJob.workMode) {
-        score += 1;
-      }
-
-      return {
-        ...job.toObject(),
-        score,
-      };
-    });
-
-    // 4. Sort by score (highest first)
-    scoredJobs.sort((a, b) => b.score - a.score);
-
-    // 5. Return top 5
-    const similarJobs = scoredJobs.slice(0, 5);
-
-    res.status(200).json({
-      success: true,
-      count: similarJobs.length,
-      jobs: similarJobs,
-    });
-  } catch (error) {
-    console.error("Error fetching similar jobs:", error);
-    res.status(500).json({
+  if (!currentJob) {
+    return res.status(404).json({
       success: false,
-      message: "Server error",
+      message: "Job not found",
     });
   }
-};
+
+  // 🗄️ 3. Fetch candidate jobs
+  const candidates = await Job.find({
+    _id: { $ne: jobId },
+    experienceLevel: currentJob.experienceLevel,
+  })
+    .limit(20)
+    .lean();
+
+  // ⚡ 4. Scoring logic
+  const scoredJobs = candidates.map((job) => {
+    let score = 0;
+
+    if (
+      job.jobTitle?.toLowerCase().includes(currentJob.jobTitle?.toLowerCase()) ||
+      currentJob.jobTitle?.toLowerCase().includes(job.jobTitle?.toLowerCase())
+    ) {
+      score += 5;
+    }
+
+    if (job.skills && currentJob.skills) {
+      const commonSkills = job.skills.filter((skill) =>
+        currentJob.skills.includes(skill)
+      );
+      score += commonSkills.length * 2;
+    }
+
+    if (job.location === currentJob.location) {
+      score += 2;
+    }
+
+    if (job.workMode === currentJob.workMode) {
+      score += 1;
+    }
+
+    return {
+      ...job,
+      score,
+    };
+  });
+
+  // 🔽 5. Sort & slice
+  scoredJobs.sort((a, b) => b.score - a.score);
+  const similarJobs = scoredJobs.slice(0, 5);
+
+  const responseData = {
+    count: similarJobs.length,
+    jobs: similarJobs,
+  };
+
+  // 💾 6. Store in Redis
+  try {
+    await redis.set(key, JSON.stringify(responseData), "EX", 300);
+  } catch (err) {
+    logger.error("Redis SET error:", err.message);
+  }
+
+  // ✅ 7. Response
+  res.status(200).json({
+    success: true,
+    ...responseData,
+    source: "db", // 🧪 testing
+  });
+});
 
 // This is an additional controller to fetch only active jobs for the alert bar on homepage
-const getActiveJobs = async (req, res) => {
+const getActiveJobs = asyncHandler(async (req, res) => {
   try {
     const jobs = await Job.find({ status: "active" })
       .sort({ createdAt: -1 });
@@ -421,16 +572,17 @@ const getActiveJobs = async (req, res) => {
     });
 
   } catch (error) {
+    logger.error("Error fetching active jobs:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching active jobs",
       error: error.message
     });
   }
-};
+});
 
 // This is an additional controller to fetch only expired jobs for the admin panel
-const getExpiredJobs = async (req, res) => {
+const getExpiredJobs = asyncHandler(async (req, res) => {
   try {
     const jobs = await Job.find({ status: "expired" })
       .sort({ createdAt: -1 });
@@ -442,16 +594,17 @@ const getExpiredJobs = async (req, res) => {
     });
 
   } catch (error) {
+    logger.error("Error fetching expired jobs:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching expired jobs",
       error: error.message
     });
   }
-};
+});
 
 //this is an controller to fetch the stats for the landing page
-const getStats = async (req, res) => {
+const getStats = asyncHandler(async (req, res) => {
   try {
     const now = new Date();
 
@@ -482,16 +635,17 @@ const getStats = async (req, res) => {
     });
 
   } catch (error) {
+    logger.error("Error fetching stats:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching stats",
       error: error.message
     });
   }
-};
+});
 
 //this is used to fetch the quick job categories in app.jsx page
-const getJobCategories = async (req, res) => {
+const getJobCategories = asyncHandler(async (req, res) => {
   try {
     const categories = [
       {
@@ -542,16 +696,17 @@ const getJobCategories = async (req, res) => {
     });
 
   } catch (error) {
+    logger.error("Error fetching categories:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching categories",
       error: error.message
     });
   }
-};
+});
 
 //this is top hiring companies controller for the landing page.
-const getTopCompanies = async (req, res) => {
+const getTopCompanies = asyncHandler(async (req, res) => {
   try {
     const companies = await Job.aggregate([
       {
@@ -589,16 +744,17 @@ const getTopCompanies = async (req, res) => {
     });
 
   } catch (error) {
+    logger.error("Error fetching top companies:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching top companies",
       error: error.message
     });
   }
-};
+});
 
 //get jobs by location controller for the landing page
-const getJobsByLocation = async (req, res) => {
+const getJobsByLocation = asyncHandler(async (req, res) => {
   try {
     const locations = await Job.aggregate([
       {
@@ -638,9 +794,9 @@ const getJobsByLocation = async (req, res) => {
       error: error.message
     });
   }
-};
+});
 
-const sendJobAlerts = async (job) => {
+const sendJobAlerts = asyncHandler(async (job) => {
   try {
     const alerts = await JobAlert.find();
 
@@ -678,11 +834,11 @@ const sendJobAlerts = async (job) => {
     }
 
   } catch (err) {
-    console.error("Error sending job alerts:", err);
+    logger.error("Error sending job alerts:", err);
   }
-};
+});
 
-const subscribeJobAlert = async (req, res) => {
+const subscribeJobAlert = asyncHandler(async (req, res) => {
   try {
     const data = req.body;
 
@@ -709,7 +865,7 @@ const subscribeJobAlert = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-};
+});
 
 const CATEGORY_FILTERS = {
   fresher: { experienceLevel: "0-1 Years" },
@@ -723,7 +879,7 @@ const CATEGORY_FILTERS = {
   },
 };
 
-const getJobsByCategories = async (req, res) => {
+const getJobsByCategories = asyncHandler(async (req, res) => {
   try {
     let { category, page = 1, limit = 10 } = req.query;
 
@@ -768,10 +924,10 @@ const getJobsByCategories = async (req, res) => {
       jobs,
     });
   } catch (error) {
-    console.error("Error fetching jobs:", error);
+    logger.error("Error fetching jobs:", error);
     res.status(500).json({ message: "Server Error" });
   }
-};
+});
 
 module.exports = {
   createJob,

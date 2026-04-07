@@ -19,4 +19,10 @@ const resourceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// 🔥 Indexes for faster queries
+
+resourceSchema.index({category:1});
+resourceSchema.index({type:1});
+resourceSchema.index({level: 1});
+
 export default mongoose.model("Resource", resourceSchema);

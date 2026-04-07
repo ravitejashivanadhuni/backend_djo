@@ -1,10 +1,9 @@
 // controllers/interviewController.js
-
 import Interview from "../models/interviewques.js";
-
+import asyncHandler from "../utils/asyncHandler.js";
 
 // ✅ GET all (with filters + search)
-export const getInterviews = async (req, res) => {
+export const getInterviews = asyncHandler(async (req, res) => {
   try {
     const { category, difficulty, level, search } = req.query;
 
@@ -38,12 +37,12 @@ export const getInterviews = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+});
 
 
 
 // ✅ CREATE
-export const createInterview = async (req, res) => {
+export const createInterview = asyncHandler(async (req, res) => {
   try {
     const newInterview = new Interview(req.body);
     const saved = await newInterview.save();
@@ -51,12 +50,12 @@ export const createInterview = async (req, res) => {
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
-};
+});
 
 
 
 // ✅ DELETE
-export const deleteInterview = async (req, res) => {
+export const deleteInterview = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -66,12 +65,12 @@ export const deleteInterview = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+});
 
 
 
 // ✅ UPDATE
-export const updateInterview = async (req, res) => {
+export const updateInterview = asyncHandler(async (req, res) => {
   try {
     const updated = await Interview.findByIdAndUpdate(
       req.params.id,
@@ -83,4 +82,4 @@ export const updateInterview = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-};
+});
