@@ -929,6 +929,83 @@ const getJobsByCategories = asyncHandler(async (req, res) => {
   }
 });
 
+// GET /api/jobs/ticker
+// Live Hiring Pulse Ticker Controller
+const getTickerJobs = async (req, res) => {
+  try {
+    const now = new Date();
+
+    // Fetch only active + verified jobs
+    let jobs = await Job.find({
+      status: "active",
+      verified: true,
+      expiryDate: { $gte: now }
+    })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .select(
+        "jobTitle companyName slug badge badgeLabel salary expiryDate createdAt"
+      );
+
+    // Smart ranking logic
+    const rankedJobs = jobs.map((job) => {
+      let priority = 0;
+      let tickerLabel = "🚀 NEW";
+
+      // 1. Urgent closing soon jobs
+      const daysLeft = Math.ceil(
+        (new Date(job.expiryDate) - now) / (1000 * 60 * 60 * 24)
+      );
+
+      if (daysLeft <= 2) {
+        priority += 50;
+        tickerLabel = "🔥 URGENT";
+      }
+
+      // 2. Featured / hot jobs
+      if (job.badge === "featured" || job.badge === "hot") {
+        priority += 40;
+        tickerLabel = "🔥 HOT";
+      }
+
+      // 3. High salary jobs
+      if (job.salary && /\d+/.test(job.salary)) {
+        priority += 20;
+      }
+
+      // 4. Fresh newest jobs
+      priority += Math.max(0, 10 - daysLeft);
+
+      return {
+        title: `${tickerLabel} ${job.companyName} hiring for ${job.jobTitle}`,
+        slug: job.slug,
+        companyName: job.companyName,
+        jobTitle: job.jobTitle,
+        priority
+      };
+    });
+
+    // Sort by priority descending
+    rankedJobs.sort((a, b) => b.priority - a.priority);
+
+    // Return only top 5 ticker items
+    const tickerJobs = rankedJobs.slice(0, 8);
+
+    res.status(200).json({
+      success: true,
+      count: tickerJobs.length,
+      data: tickerJobs
+    });
+  } catch (error) {
+    console.error("Ticker Jobs Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch ticker jobs"
+    });
+  }
+};
+
+
 module.exports = {
   createJob,
   getJobs,
@@ -946,5 +1023,6 @@ module.exports = {
   getJobsByCategories,
   updateJob,
   deleteJob,
-  closeJob
+  closeJob,
+  getTickerJobs
 };

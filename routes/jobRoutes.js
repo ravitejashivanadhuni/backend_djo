@@ -18,7 +18,8 @@ const {
   getJobsByCategories,
   updateJob,
   deleteJob,
-  closeJob
+  closeJob,
+  getTickerJobs
 
 } = require("../controllers/jobController");
 
@@ -45,6 +46,7 @@ router.get("/quick-job-categories", getJobCategories);
 router.get("/top-hiring-companies", getTopCompanies);
 router.get("/jobs-by-location", getJobsByLocation);
 router.get("/jobs-by-categories", getJobsByCategories);
+router.get("/top-ticker-jobs", getTickerJobs);
 
 
 module.exports = router;
