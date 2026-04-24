@@ -461,3 +461,45 @@ exports.extractJobFromURL = asyncHandler(async (req, res) => {
     });
   }
 });
+
+// 🔥 TEXT BASED EXTRACTION
+exports.extractJobFromText = asyncHandler(async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || text.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Text is required",
+      });
+    }
+
+    const response = await axios.post(
+      `${process.env.PYTHON_SERVICE_URL}/extract-from-text`,
+      { text },
+      { timeout: 30000 }
+    );
+
+    if (!response.data.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Extraction failed",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Text extraction successful",
+      data: response.data.data,
+    });
+
+  } catch (error) {
+    console.error("Text extraction error:", error.response?.data || error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Error extracting job from text",
+      error: error.response?.data || error.message,
+    });
+  }
+});

@@ -12,7 +12,8 @@ const {
   getCompanies,
   updateCompany,
   deleteCompany,
-  extractJobFromURL
+  extractJobFromURL,
+  extractJobFromText
 } = require("../controllers/admincontroller");
 
 const authMiddleware = require("../middlewares/authmiddleware");
@@ -81,9 +82,16 @@ router.delete(
 );
 
 router.post(
-  "/extract-job",
+  "/extract-job-using-link",
   authMiddleware,
   allowRoles("admin", "super_admin"),
   extractJobFromURL
+);
+
+router.post(
+  "/extract-job-using-text",
+  authMiddleware,
+  allowRoles("admin", "super_admin"),
+  extractJobFromText
 );
 module.exports = router;
