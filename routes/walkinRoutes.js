@@ -1,21 +1,34 @@
-import express from 'express';
-import {
+const express = require ("express");
+
+const {
   createWalkIn,
-  getWalkIns,
-  getSingleWalkIn,
+  getAllWalkIns,
+  getWalkInBySlug,
   updateWalkIn,
   deleteWalkIn
-} from '../controllers/walkinController.js';
-// Note: User did not explicitly mention authMiddleware in their strict requirements,
-// but usually admin routes need it. I'll omit it to ensure the pipeline works out of the box 
-// based on the instruction "Fully dynamic system working end-to-end", but if they have authMiddleware
-// I could add it. For now, public access.
+} = require("../controllers/walkincontrollers");
+const authMiddleware = require("../middlewares/authmiddleware");
+const allowRoles = require("../middlewares/rolemiddleware");
+
 const router = express.Router();
 
-router.post('/', createWalkIn);
-router.get('/', getWalkIns);
-router.get('/:id', getSingleWalkIn);
-router.put('/:id', updateWalkIn);
-router.delete('/:id', deleteWalkIn);
 
-export default router;
+
+// CREATE
+router.post("/create-walkin",authMiddleware,  allowRoles("admin", "super_admin"), createWalkIn);
+
+// GET ALL
+router.get("/get-all-walkins", getAllWalkIns);
+
+// GET SINGLE
+router.get("/get-walkin-by-slug/:walkinslug", getWalkInBySlug);
+
+// UPDATE
+router.put("/update-walkin/:id",authMiddleware,  allowRoles("admin", "super_admin"), updateWalkIn);
+
+// DELETE
+router.delete("/delete-walkin/:id",authMiddleware,  allowRoles("admin", "super_admin"), deleteWalkIn);
+
+
+
+module.exports = router;
