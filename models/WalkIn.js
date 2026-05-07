@@ -267,4 +267,4 @@ walkInJobSchema.index({
   "walkInDetails.startDate": 1
 });
 
-module.exports = mongoose.model("WalkInJob", walkInJobSchema);
+module.exports = mongoose.models.WalkInJob || mongoose.model("WalkInJob", walkInJobSchema);
