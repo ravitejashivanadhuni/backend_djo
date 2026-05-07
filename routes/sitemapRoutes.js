@@ -4,7 +4,7 @@ const router = express.Router();
 const { SitemapStream, streamToPromise } = require("sitemap");
 
 const Job = require("../models/job");
-const Walkin = require("../models/walkin");
+const Walkin = require("../models/Walkin");
 const Exam = require("../models/Exams");
 
 router.get("/sitemap.xml", async (req, res) => {
