@@ -29,6 +29,7 @@
     "resend": "^6.10.0",
     "response-time": "^2.3.4",
     "serverless-http": "^4.0.0",
+    "sitemap": "^9.0.1",
     "slugify": "^1.6.9",
     "winston": "^3.19.0",
     "xss-clean": "^0.1.4"
