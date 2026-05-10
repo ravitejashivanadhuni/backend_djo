@@ -152,8 +152,6 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
-const mongoSanitize = require("express-mongo-sanitize");
-const xss = require("xss-clean");
 
 const connectDB = require("./config/db");
 
@@ -186,11 +184,11 @@ app.use(
   helmet({
     crossOriginResourcePolicy: false,
 
-    // ✅ Disable default CSP initially
-    // because AdSense + React can break
+    // Disable strict CSP initially
+    // AdSense + React may break with default CSP
     contentSecurityPolicy: false,
 
-    // ✅ Enable HSTS
+    // Enable HSTS
     hsts: {
       maxAge: 31536000,
       includeSubDomains: true,
@@ -212,8 +210,10 @@ app.use(compression());
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
+
   standardHeaders: true,
   legacyHeaders: false,
+
   message: {
     success: false,
     message: "Too many requests, please try again later",
@@ -237,6 +237,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
+
       // Allow Postman/mobile apps/no-origin requests
       if (!origin) return callback(null, true);
 
@@ -263,16 +264,6 @@ app.use(
     limit: "10kb",
   })
 );
-
-/* =========================================
-   ✅ SANITIZATION & SECURITY
-========================================= */
-
-// Prevent NoSQL Injection
-app.use(mongoSanitize());
-
-// Prevent XSS attacks
-app.use(xss());
 
 /* =========================================
    ✅ LOGGING
@@ -315,6 +306,17 @@ app.get("/health", (req, res) => {
   res.status(200).json({
     success: true,
     status: "OK",
+  });
+});
+
+/* =========================================
+   ✅ 404 HANDLER
+========================================= */
+
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: "Route not found",
   });
 });
 
