@@ -37,6 +37,16 @@ router.get("/sitemap.xml", async (req, res) => {
         priority: 0.7,
       },
       {
+        url: "/terms-and-conditions",
+        changefreq: "yearly",
+        priority: 0.5,
+      },
+      {
+        url: "/disclaimer-page",
+        changefreq: "yearly",
+        priority: 0.5,
+      },
+      {
         url: "/privacy",
         changefreq: "yearly",
         priority: 0.5,
