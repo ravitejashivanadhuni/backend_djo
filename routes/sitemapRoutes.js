@@ -47,7 +47,7 @@ router.get("/sitemap.xml", async (req, res) => {
         priority: 0.5,
       },
       {
-        url: "/privacy-policy",
+        url: "/privacy",
         changefreq: "yearly",
         priority: 0.5,
       },
