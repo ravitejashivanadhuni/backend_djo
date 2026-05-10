@@ -1,12 +1,162 @@
+// require("dotenv").config();
+// const express = require("express");
+// const cors = require("cors");
+// const helmet = require("helmet");
+// const morgan = require("morgan");
+// const rateLimit = require("express-rate-limit");
+// const mongoSanitize = require("express-mongo-sanitize");
+// const xss = require("xss-clean");
+// const connectDB = require("./config/db");
+// const jobRoutes = require("./routes/jobRoutes");
+// const jobAlertRoutes = require("./routes/jobalertroutes");
+// const resourceRoutes = require("./routes/resourceRoutes").default;
+// const interviewRoutes = require("./routes/interviewroutes").default;
+// const adminRoutes = require("./routes/adminroutes");
+// const examRoutes = require("./routes/ExamRoutes");
+// const walkinRoutes = require("./routes/walkinRoutes");
+// const sitemapRoutes = require("./routes/sitemapRoutes");
+// const robotsRoutes = require("./routes/robotsRoutes");
+
+// // ✅ Cron job (works in Render)
+// require("./cron/jobstatusupdater");
+
+// const app = express();
+
+// /* =========================
+//    ✅ SECURITY MIDDLEWARE
+// ========================= */
+
+// // Secure HTTP headers
+// app.use(helmet());
+
+// /* =========================
+//    ✅ RATE LIMITING (NEW)
+// ========================= */
+
+// const apiLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 1000, // limit each IP
+//   message: "Too many requests, please try again later",
+// });
+
+// /* =========================
+//    ✅ CORS CONFIGURATION
+// ========================= */
+
+// const allowedOrigins = [
+//   "http://localhost:5173",
+//   ...(process.env.FRONTEND_URL
+//     ? process.env.FRONTEND_URL.split(",")
+//     : []),
+// ];
+
+// app.use(
+//   cors({
+//     origin: function (origin, callback) {
+//       if (!origin) return callback(null, true);
+
+//       if (allowedOrigins.includes(origin)) {
+//         callback(null, true);
+//       } else {
+//         callback(new Error("CORS not allowed"));
+//       }
+//     },
+//     credentials: true,
+//   })
+// );
+
+// /* =========================
+//    ✅ MIDDLEWARE
+// ========================= */
+
+// // ✅ JSON LIMIT (NEW)
+// app.use(express.json({ limit: "10kb" }));
+
+// // Logging (only dev)
+// if (process.env.NODE_ENV !== "production") {
+//   app.use(morgan("dev"));
+// }
+
+// /* =========================
+//    ✅ APPLY RATE LIMIT TO API (NEW)
+// ========================= */
+
+// app.use("/api", apiLimiter);
+
+// /* =========================
+//    ✅ DATABASE CONNECTION
+// ========================= */
+
+// connectDB();
+
+// /* =========================
+//    ✅ ROUTES
+// ========================= */
+
+// app.use("/api", jobRoutes);
+// app.use("/api/job-alerts", jobAlertRoutes);
+// app.use("/api/resources", resourceRoutes);
+// app.use("/api/interview-ques", interviewRoutes);
+// app.use("/api/exams", examRoutes);
+// app.use("/api/walkins", walkinRoutes);
+// app.use("/api/admin", adminRoutes);
+// app.use("/", sitemapRoutes);
+// app.use("/", robotsRoutes);
+
+// // Root Route
+// app.get("/", (req, res) => {
+//   res.send("Daily Job Openings API Running 🚀");
+// });
+
+// // Health Check
+// app.get("/health", (req, res) => {
+//   res.status(200).json({ status: "OK" });
+// });
+
+// /* =========================
+//    ✅ GLOBAL ERROR HANDLER (FIXED)
+// ========================= */
+
+// const isProd = process.env.NODE_ENV === "production";
+
+// app.use((err, req, res, next) => {
+//   console.error("Error:", err);
+
+//   res.status(err.status || 500).json({
+//     success: false,
+//     message: isProd
+//       ? "Something went wrong"
+//       : err.message,
+//   });
+// });
+// // app.use(mongoSanitize()); // Prevent NoSQL injection
+// // app.use(xss()); // Prevent XSS attacks
+
+// /* =========================
+//    ✅ SERVER START
+// ========================= */
+
+// const PORT = process.env.PORT || 5000;
+
+// app.listen(PORT, () => {
+//   console.log(
+//     `🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`
+//   );
+// });
+
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
+const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
 const xss = require("xss-clean");
+
 const connectDB = require("./config/db");
+
 const jobRoutes = require("./routes/jobRoutes");
 const jobAlertRoutes = require("./routes/jobalertroutes");
 const resourceRoutes = require("./routes/resourceRoutes").default;
@@ -17,34 +167,68 @@ const walkinRoutes = require("./routes/walkinRoutes");
 const sitemapRoutes = require("./routes/sitemapRoutes");
 const robotsRoutes = require("./routes/robotsRoutes");
 
-// ✅ Cron job (works in Render)
+// ✅ Cron jobs
 require("./cron/jobstatusupdater");
 
 const app = express();
 
-/* =========================
-   ✅ SECURITY MIDDLEWARE
-========================= */
+/* =========================================
+   ✅ TRUST PROXY (IMPORTANT FOR RENDER)
+========================================= */
 
-// Secure HTTP headers
-app.use(helmet());
+app.set("trust proxy", 1);
 
-/* =========================
-   ✅ RATE LIMITING (NEW)
-========================= */
+/* =========================================
+   ✅ SECURITY HEADERS
+========================================= */
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+
+    // ✅ Disable default CSP initially
+    // because AdSense + React can break
+    contentSecurityPolicy: false,
+
+    // ✅ Enable HSTS
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
+
+/* =========================================
+   ✅ COMPRESSION
+========================================= */
+
+app.use(compression());
+
+/* =========================================
+   ✅ RATE LIMITING
+========================================= */
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP
-  message: "Too many requests, please try again later",
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests, please try again later",
+  },
 });
 
-/* =========================
+app.use("/api", apiLimiter);
+
+/* =========================================
    ✅ CORS CONFIGURATION
-========================= */
+========================================= */
 
 const allowedOrigins = [
   "http://localhost:5173",
+
   ...(process.env.FRONTEND_URL
     ? process.env.FRONTEND_URL.split(",")
     : []),
@@ -53,6 +237,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
+      // Allow Postman/mobile apps/no-origin requests
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
@@ -61,37 +246,51 @@ app.use(
         callback(new Error("CORS not allowed"));
       }
     },
+
     credentials: true,
   })
 );
 
-/* =========================
-   ✅ MIDDLEWARE
-========================= */
+/* =========================================
+   ✅ BODY PARSING
+========================================= */
 
-// ✅ JSON LIMIT (NEW)
 app.use(express.json({ limit: "10kb" }));
 
-// Logging (only dev)
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "10kb",
+  })
+);
+
+/* =========================================
+   ✅ SANITIZATION & SECURITY
+========================================= */
+
+// Prevent NoSQL Injection
+app.use(mongoSanitize());
+
+// Prevent XSS attacks
+app.use(xss());
+
+/* =========================================
+   ✅ LOGGING
+========================================= */
+
 if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
 }
 
-/* =========================
-   ✅ APPLY RATE LIMIT TO API (NEW)
-========================= */
-
-app.use("/api", apiLimiter);
-
-/* =========================
+/* =========================================
    ✅ DATABASE CONNECTION
-========================= */
+========================================= */
 
 connectDB();
 
-/* =========================
+/* =========================================
    ✅ ROUTES
-========================= */
+========================================= */
 
 app.use("/api", jobRoutes);
 app.use("/api/job-alerts", jobAlertRoutes);
@@ -100,27 +299,33 @@ app.use("/api/interview-ques", interviewRoutes);
 app.use("/api/exams", examRoutes);
 app.use("/api/walkins", walkinRoutes);
 app.use("/api/admin", adminRoutes);
+
 app.use("/", sitemapRoutes);
 app.use("/", robotsRoutes);
 
-// Root Route
+/* =========================================
+   ✅ ROOT ROUTES
+========================================= */
+
 app.get("/", (req, res) => {
   res.send("Daily Job Openings API Running 🚀");
 });
 
-// Health Check
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "OK" });
+  res.status(200).json({
+    success: true,
+    status: "OK",
+  });
 });
 
-/* =========================
-   ✅ GLOBAL ERROR HANDLER (FIXED)
-========================= */
+/* =========================================
+   ✅ GLOBAL ERROR HANDLER
+========================================= */
 
 const isProd = process.env.NODE_ENV === "production";
 
 app.use((err, req, res, next) => {
-  console.error("Error:", err);
+  console.error("❌ Error:", err);
 
   res.status(err.status || 500).json({
     success: false,
@@ -129,12 +334,10 @@ app.use((err, req, res, next) => {
       : err.message,
   });
 });
-// app.use(mongoSanitize()); // Prevent NoSQL injection
-// app.use(xss()); // Prevent XSS attacks
 
-/* =========================
+/* =========================================
    ✅ SERVER START
-========================= */
+========================================= */
 
 const PORT = process.env.PORT || 5000;
 
