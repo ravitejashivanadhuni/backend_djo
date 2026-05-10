@@ -83,19 +83,19 @@ const examSchema = new mongoose.Schema(
   },
 
   applicationStartDate: {
-    type: Date
+    type: String
   },
 
   applicationEndDate: {
-    type: Date
+    type: String
   },
 
   examDate: {
-    type: Date
+    type: String
   },
 
   resultDate: {
-    type: Date
+    type: String
   },
 
   officialWebsite: {
