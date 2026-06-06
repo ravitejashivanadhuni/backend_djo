@@ -164,6 +164,7 @@ const examRoutes = require("./routes/ExamRoutes");
 const walkinRoutes = require("./routes/walkinRoutes");
 const sitemapRoutes = require("./routes/sitemapRoutes");
 const robotsRoutes = require("./routes/robotsRoutes");
+const logger = require("./utils/logger");
 
 // ✅ Cron jobs
 require("./cron/jobstatusupdater");
