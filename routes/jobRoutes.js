@@ -21,6 +21,8 @@ const {
   closeJob,
   getTickerJobs,
   getDynamicCategories,
+  getJobFilters,
+  JobSearchCard
 
 } = require("../controllers/jobController");
 
@@ -34,7 +36,9 @@ router.patch("/close-job/:id", authMiddleware, allowRoles("admin", "super_admin"
 
 // GET jobs (with filters)
 router.get("/get-jobs", getJobs);
+router.get("/get-job-filters", getJobFilters);
 router.get("/browse-by-categories", getDynamicCategories);
+router.get("/job-search-using-fields", JobSearchCard);
 
 // GET job details
 router.get("/view-job/:slug", getJobBySlug);

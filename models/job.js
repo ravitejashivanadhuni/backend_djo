@@ -72,8 +72,9 @@ const jobSchema = new mongoose.Schema(
         "NON_IT",
         "BANKING",
       ],
-      required: true
+      required: false
     },
+    jobFunction: String,
     experienceLevel: String,
     experienceMin: Number,
     experienceMax: Number,

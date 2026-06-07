@@ -202,50 +202,227 @@ const closeJob = asyncHandler(async (req, res) => {
 });
 
 // GET ALL JOBS + FILTER
+// const getJobs = asyncHandler(async (req, res) => {
+//   try {
+
+//     const query = {};
+
+//     if (req.query.experienceLevel) {
+//       query.experienceLevel = req.query.experienceLevel;
+//     }
+
+//     if (req.query.jobType) {
+//       query.jobType = req.query.jobType;
+//     }
+
+//     if (req.query.jobCategory) {
+//       query.jobCategory = req.query.jobCategory;
+//     }
+
+//     if (req.query.workMode) {
+//       query.workMode = req.query.workMode;
+//     }
+
+//     if (req.query.location) {
+//       query.location = req.query.location;
+//     }
+
+//     const jobs = await Job.find(query).sort({ createdAt: -1 });
+
+//     res.status(200).json({
+//       success: true,
+//       results: jobs.length,
+//       data: jobs
+//     });
+
+//   } catch (error) {
+
+//     res.status(500).json({
+//       success: false,
+//       message: "Error fetching jobs",
+//       error: error.message
+//     });
+
+//   }
+// });
+
 const getJobs = asyncHandler(async (req, res) => {
+  const {
+    jobCategory,
+    city,
+    workMode,
+    employmentType,
+    experienceMin,
+    experienceMax,
+    salaryMin,
+    salaryMax,
+    search,
+    sort,
+    page = 1,
+    limit = 20
+  } = req.query;
+
+  const query = {
+    status: "ACTIVE"
+  };
+
+  // Category
+  if (jobCategory) {
+    query.jobCategory = jobCategory;
+  }
+
+  // City
+  if (city) {
+    query.city = city;
+  }
+
+  // Work Mode
+  if (workMode) {
+    query.workMode = workMode;
+  }
+
+  // Employment Type
+  if (employmentType) {
+    query.employmentType = employmentType;
+  }
+
+  // Search
+  if (search) {
+    query.$text = {
+      $search: search
+    };
+  }
+
+  // Experience Filter
+  if (experienceMin || experienceMax) {
+    query.experienceMax = {
+      $gte: Number(experienceMin || 0)
+    };
+
+    query.experienceMin = {
+      $lte: Number(experienceMax || 50)
+    };
+  }
+
+  // Salary Filter
+  if (salaryMin || salaryMax) {
+    query.salaryMax = {
+      $gte: Number(salaryMin || 0)
+    };
+
+    query.salaryMin = {
+      $lte: Number(salaryMax || 999999)
+    };
+  }
+
+  // Sorting
+  let sortQuery = {
+    createdAt: -1
+  };
+
+  switch (sort) {
+    case "oldest":
+      sortQuery = { createdAt: 1 };
+      break;
+
+    case "salary_high":
+      sortQuery = { salaryMax: -1 };
+      break;
+
+    case "salary_low":
+      sortQuery = { salaryMin: 1 };
+      break;
+
+    case "most_viewed":
+      sortQuery = { viewsCount: -1 };
+      break;
+
+    case "most_applied":
+      sortQuery = { applyClicks: -1 };
+      break;
+
+    default:
+      sortQuery = { createdAt: -1 };
+  }
+
+  const skip =
+    (Number(page) - 1) * Number(limit);
+
+  const [jobs, total] = await Promise.all([
+    Job.find(query)
+      .sort(sortQuery)
+      .skip(skip)
+      .limit(Number(limit)),
+
+    Job.countDocuments(query)
+  ]);
+
+  res.status(200).json({
+    success: true,
+    total,
+    currentPage: Number(page),
+    totalPages: Math.ceil(
+      total / Number(limit)
+    ),
+    results: jobs.length,
+    data: jobs
+  });
+});
+
+// controllers/jobController.js
+
+const getJobFilters = asyncHandler(async (req, res) => {
   try {
 
-    const query = {};
+    const [
+      categories,
+      cities,
+      employmentTypes,
+      workModes,
+      jobFunctions,
+      degrees,
+      branches
+    ] = await Promise.all([
 
-    if (req.query.experienceLevel) {
-      query.experienceLevel = req.query.experienceLevel;
-    }
+      Job.distinct("jobCategory"),
 
-    if (req.query.jobType) {
-      query.jobType = req.query.jobType;
-    }
+      Job.distinct("city"),
 
-    if (req.query.jobCategory) {
-      query.jobCategory = req.query.jobCategory;
-    }
+      Job.distinct("employmentType"),
 
-    if (req.query.workMode) {
-      query.workMode = req.query.workMode;
-    }
+      Job.distinct("workMode"),
 
-    if (req.query.location) {
-      query.location = req.query.location;
-    }
+      Job.distinct("jobFunction"),
 
-    const jobs = await Job.find(query).sort({ createdAt: -1 });
+      Job.distinct("eligibleDegrees"),
+
+      Job.distinct("eligibleBranches")
+
+    ]);
 
     res.status(200).json({
       success: true,
-      results: jobs.length,
-      data: jobs
+
+      filters: {
+        categories: categories.filter(Boolean),
+        cities: cities.filter(Boolean),
+        employmentTypes: employmentTypes.filter(Boolean),
+        workModes: workModes.filter(Boolean),
+        jobFunctions: jobFunctions.filter(Boolean),
+        degrees: degrees.filter(Boolean),
+        branches: branches.filter(Boolean)
+      }
     });
 
   } catch (error) {
 
     res.status(500).json({
       success: false,
-      message: "Error fetching jobs",
-      error: error.message
+      message: error.message
     });
 
   }
 });
-
 // const getJobBySlug = asyncHandler(async (req, res) => {
 //   try {
 //     const job = await Job.findOne({ slug: req.params.slug });
@@ -1048,6 +1225,108 @@ const getTickerJobs = async (req, res) => {
   }
 };
 
+const JobSearchCard = asyncHandler(async (req, res) => {
+  try {
+    const {
+      query: searchQuery,
+      category,
+      role,
+      location,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const filter = {
+      status: "ACTIVE"
+    };
+
+    // Category
+    if (category) {
+      filter.jobCategory =
+        category === "Non-IT"
+          ? "NON_IT"
+          : category.toUpperCase();
+    }
+
+    // Role
+    if (role) {
+      filter.jobRole = {
+        $regex: role,
+        $options: "i"
+      };
+    }
+
+    // Location
+    if (
+      location &&
+      location !== "All Locations"
+    ) {
+      if (location === "Work From Home") {
+        filter.workMode = "REMOTE";
+      } else {
+        filter.city = {
+          $regex: location,
+          $options: "i"
+        };
+      }
+    }
+
+    // Search Input (Company Name OR Job Title)
+    if (searchQuery?.trim()) {
+      filter.$or = [
+        {
+          companyName: {
+            $regex: searchQuery.trim(),
+            $options: "i"
+          }
+        },
+        {
+          jobTitle: {
+            $regex: searchQuery.trim(),
+            $options: "i"
+          }
+        },
+        {
+          jobRole: {
+            $regex: searchQuery.trim(),
+            $options: "i"
+          }
+        }
+      ];
+    }
+
+    const skip =
+      (Number(page) - 1) * Number(limit);
+
+    const [jobs, total] = await Promise.all([
+      Job.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+
+      Job.countDocuments(filter)
+    ]);
+
+    res.status(200).json({
+      success: true,
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(
+        total / Number(limit)
+      ),
+      results: jobs.length,
+      data: jobs
+    });
+
+  } catch (error) {
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+});
 
 module.exports = {
   createJob,
@@ -1068,5 +1347,7 @@ module.exports = {
   deleteJob,
   closeJob,
   getTickerJobs,
-  getDynamicCategories
+  getDynamicCategories,
+  getJobFilters,
+  JobSearchCard
 };
