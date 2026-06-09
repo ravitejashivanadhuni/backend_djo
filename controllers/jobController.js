@@ -876,7 +876,7 @@ const getStats = asyncHandler(async (req, res) => {
 
     // ✅ Active Jobs
     const activeJobs = await Job.countDocuments({
-      status: "active",
+      status: "ACTIVE",
       expiryDate: { $gte: now }
     });
 
@@ -977,7 +977,7 @@ const getTopCompanies = asyncHandler(async (req, res) => {
     const companies = await Job.aggregate([
       {
         $match: {
-          status: "active"
+          status: "ACTIVE"
         }
       },
       {
