@@ -84,7 +84,7 @@ const updateJob = asyncHandler(async (req, res) => {
         message: "Job not found",
       });
     }
-    if (job.status === "closed") {
+    if (job.status === "CLOSED") {
       return res.status(400).json({
         success: false,
         message: "cannot update a closed job",
@@ -183,7 +183,7 @@ const closeJob = asyncHandler(async (req, res) => {
       });
     }
 
-    job.status = "closed";
+    job.status = "CLOSED";
 
     const updatedJob = await job.save();
 
